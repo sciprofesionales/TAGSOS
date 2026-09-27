@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    body{
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: auto;
+      padding: 20px;
+      background: #f7f7f7;
+    }
+
+    .header{
+      background: #d32f2f;
+      color: white;
+      padding: 15px;
+      border-radius: 10px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .header h2{ margin: 0; }
+    .header div{ font-size: 14px; }
+
+    .card{
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 20px;
+      border-radius: 12px;
+      margin-top: 20px;
+    }
+
+    .aviso{
+      background: #fff3cd;
+      padding: 10px;
+      border-radius: 8px;
+      margin: 15px 0;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .btn-llamar{
+      display: block;
+      background: #28a745;
+      color: white;
+      padding: 12px;
+      text-align: center;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: bold;
+      font-size: 15px;
+      box-sizing: border-box;
+    }
+
+    .btn-llamar:active{ opacity: 0.85; }
+
+    .btn-whatsapp{ background: #25D366; }
+
+    .btn-configurar{
+      display: block;
+      background: #d32f2f;
+      color: white;
+      padding: 15px;
+      text-align: center;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: bold;
+      font-size: 16px;
+      margin-top: 15px;
+    }
+
+    .btn-configurar:active{ opacity: 0.85; }
+
+    .contacto{
+      margin-bottom: 20px;
+    }
+
+    .contacto-titulo{
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+
+    .botones{
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .botones > a{ flex: 1; }
+  </style>
+</head>
+
+<body>
+
+<div class="header">
+  <h2>🚨 TAGSOS</h2>
+  <div>Información para emergencias</div>
+</div>
+
+<div id="resultado"></div>
+
+<script>
+
+/* ============================================================
+   CONFIGURACIÓN — REEMPLAZA ESTOS VALORES
+   ============================================================ */
+
+// URL del CSV publicado de "Respuestas de formulario 1"
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSW1sNKav-RAooL4RoZ6h9hHwsPnHUS1UJbb3Pq6WozIQgkmu3rpehTAZgn6sJXl-MxTWFIzV2dIOqH/pub?gid=1993943309&single=true&output=csv";
+
+// URL base del Google Form
+const FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfsQ1Wi-4nc0Coa4ws14jmor8tldpOa_YVpkNMvPtGyMNumVw/viewform";
+
+// entry.XXXX del campo "Código" del Form
+const FORM_ENTRY_CODIGO = "entry.955486494";
+
+// URL del Apps Script publicado (para registrar accesos)
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzr6rB9pUR7l3_gfDSXL9z_0GsRc_Ee74uxmGUQ_Wr3Z6XmVFLicRBqD0GeWLz2tV1q/exec";
+
+/* ============================================================
+   UTILIDADES
+   ============================================================ */
+
+function esc(v){
+  if (v === null || v === undefined) return "";
+  return String(v)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function limpiarTel(t){
+  if (!t) return "";
+  let limpio = String(t).replace(/[^\d+]/g, "");
+  if (limpio.startsWith("+")) return limpio;
+  if (limpio.startsWith("51") && limpio.length === 11) return "+" + limpio;
+  if (limpio.startsWith("0")) limpio = limpio.substring(1);
+  if (limpio.length === 9 || limpio.length === 8) return "+51" + limpio;
+  return "+51" + limpio;
+}
+
+/* ============================================================
+   REGISTRO DE ACCESOS (silencioso, no bloquea)
+   ============================================================ */
+
+function registrarAcceso(codigo, tipo){
+  try {
+    fetch(APPS_SCRIPT_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({
+        accion: "registrarAcceso",
+        codigo: codigo,
+        tipo: tipo    // "nuevo" o "configurado"
+      })
+    });
+  } catch(e){
+    console.warn("No se pudo registrar acceso:", e);
+  }
+}
+
+/* ============================================================
+   BLOQUE DE CONTACTO
+   ============================================================ */
+
+function bloqueContacto(numero, telefono){
+  const t = esc(telefono) || "-";
+  const telLimpio = limpiarTel(telefono);
+
+  if (!telLimpio){
+    return `
+      <div class="contacto">
+        <div class="contacto-titulo">📞 Contacto ${numero}</div>
+        <div style="color:#999;font-size:13px;">(Sin teléfono registrado)</div>
+      </div>
+    `;
+  }
+
+  const waNumero = telLimpio.replace(/^\+/, "");
+
+  return `
+    <div class="contacto">
+      <div class="contacto-titulo">📞 Contacto ${numero}: ${t}</div>
+      <div class="botones">
+        <a class="btn-llamar" href="tel:${telLimpio}" target="_self">LLAMAR</a>
+        <a class="btn-llamar btn-whatsapp"
+           href="https://wa.me/${waNumero}" target="_blank" rel="noopener">
+          WHATSAPP
+        </a>
+      </div>
+    </div>
+  `;
+}
+
+/* ============================================================
+   VISTAS
+   ============================================================ */
+
+function mostrarFicha(t1, t2, t3){
+  const html = `
+    <div class="card">
+      <div class="aviso">
+        ⚠️ En caso de emergencia contacte a los números registrados.
+      </div>
+      ${bloqueContacto(1, t1)}
+      ${bloqueContacto(2, t2)}
+      ${bloqueContacto(3, t3)}
+    </div>
+  `;
+  document.getElementById("resultado").innerHTML = html;
+}
+
+function mostrarFormulario(codigo){
+  const urlForm = FORM_URL + "?" + FORM_ENTRY_CODIGO + "=" + encodeURIComponent(codigo);
+
+  const html = `
+    <div class="card">
+      <div class="aviso">
+        🚨 Este código aún no tiene contactos de emergencia configurados.
+      </div>
+      <p style="font-size:15px;">
+        Configura tus 3 teléfonos de emergencia. Solo toma un minuto.
+        Una vez configurados, cualquier persona que escanee este código
+        podrá contactar a tus contactos en caso de emergencia.
+      </p>
+      <a class="btn-configurar" href="${urlForm}" target="_blank" rel="noopener">
+        CONFIGURAR MIS CONTACTOS
+      </a>
+      <p style="font-size:13px;color:#666;margin-top:15px;text-align:center;">
+        Después de configurar, vuelve a escanear tu código.
+      </p>
+    </div>
+  `;
+  document.getElementById("resultado").innerHTML = html;
+}
+
+function mostrarNoEncontrado(){
+  document.getElementById("resultado").innerHTML = `
+    <div class="card" style="text-align:center;">
+      ❌ Código no encontrado
+    </div>
+  `;
+}
+
+function mostrarError(){
+  document.getElementById("resultado").innerHTML = `
+    <div class="card" style="text-align:center;">
+      ⚠️ Error de conexión. Intente nuevamente.
+    </div>
+  `;
+}
+
+/* ============================================================
+   BÚSQUEDA PRINCIPAL
+   ============================================================ */
+
+async function buscar(codigo){
+
+  document.getElementById("resultado").innerHTML =
+    `<div class="card" style="text-align:center;">🔄 Buscando información...</div>`;
+
+  try {
+    const res = await fetch(CSV_URL + "&cachebust=" + Date.now());
+    const texto = await res.text();
+
+    // Parseo simple de CSV (para datos sin comas internas)
+    const filas = texto.split("\n").map(f => f.split(","));
+
+    let ultimaFila = null;
+
+    for (let i = 1; i < filas.length; i++){
+      const fila = filas[i];
+      if (!fila || fila.length < 2) continue;
+
+      const codigoFila = (fila[1] || "").trim();
+      if (codigoFila === codigo.trim()){
+        ultimaFila = fila;   // sobreescribe con cada coincidencia
+      }
+    }
+
+    if (!ultimaFila){
+      mostrarFormulario(codigo);
+      registrarAcceso(codigo, "nuevo");
+      return;
+    }
+
+    const t1 = (ultimaFila[2] || "").trim();
+    const t2 = (ultimaFila[3] || "").trim();
+    const t3 = (ultimaFila[4] || "").trim();
+
+    if (t1 || t2 || t3){
+      mostrarFicha(t1, t2, t3);
+      registrarAcceso(codigo, "configurado");
+    } else {
+      mostrarFormulario(codigo);
+      registrarAcceso(codigo, "nuevo");
+    }
+
+  } catch(e){
+    console.error(e);
+    mostrarError();
+  }
+}
+
+/* ============================================================
+   INICIO
+   ============================================================ */
+
+window.onload = function(){
+  const params = new URLSearchParams(window.location.search);
+  const codigo = (params.get("codigo") || "").trim();
+
+  if (codigo){
+    buscar(codigo);
+  } else {
+    document.getElementById("resultado").innerHTML = `
+      <div class="card" style="text-align:center;">
+        ⚠️ No se ha especificado un código.
+      </div>
+    `;
+  }
+};
+
+</script>
+
+</body>
+</html>
