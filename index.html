@@ -159,6 +159,30 @@
       border-top: 2px dashed #ddd;
       margin: 30px 0 10px 0;
     }
+
+    /* === SOPORTE WHATSAPP === */
+
+    .soporte{
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 1px solid #eee;
+      text-align: center;
+      font-size: 12px;
+      color: #888;
+      line-height: 1.6;
+    }
+
+    .soporte a{
+      color: #25D366;
+      text-decoration: none;
+      font-weight: bold;
+      display: inline-block;
+      margin-top: 4px;
+    }
+
+    .soporte a:active{
+      opacity: 0.7;
+    }
   </style>
 </head>
 
@@ -191,6 +215,11 @@ const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSW1sNKav-RAooL
 const FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfsQ1Wi-4nc0Coa4ws14jmor8tldpOa_YVpkNMvPtGyMNumVw/viewform";
 const FORM_ENTRY_CODIGO = "entry.955486494";
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzr6rB9pUR7l3_gfDSXL9z_0GsRc_Ee74uxmGUQ_Wr3Z6XmVFLicRBqD0GeWLz2tV1q/exec";
+
+// Número de soporte (con formato wa.me, sin + ni espacios)
+const SOPORTE_WA = "51916582495";
+// Número de soporte (para mostrar)
+const SOPORTE_TEXTO = "+51 916 582 495";
 
 /* ============================================================
    NÚMEROS DE EMERGENCIA DE PERÚ
@@ -323,6 +352,14 @@ function mostrarFicha(t1, t2, t3){
       ${bloqueContacto(1, t1)}
       ${bloqueContacto(2, t2)}
       ${bloqueContacto(3, t3)}
+      <div class="soporte">
+        ¿Necesita modificar sus contactos?<br>
+        Escríbanos por WhatsApp a soporte:<br>
+        <a href="https://wa.me/${SOPORTE_WA}?text=${encodeURIComponent('Hola, necesito modificar mis contactos de emergencia TAGSOS.')}"
+           target="_blank" rel="noopener">
+          💬 ${SOPORTE_TEXTO}
+        </a>
+      </div>
     </div>
   `;
   document.getElementById("divisor-ficha").style.display = "block";
@@ -345,6 +382,14 @@ function mostrarFormulario(codigo){
       <p style="font-size:13px;color:#666;margin-top:15px;text-align:center;">
         Después de configurar, espera unos minutos y vuelve a escanear tu código QR.
       </p>
+      <div class="soporte">
+        ¿Tiene problemas para registrarse?<br>
+        Escríbanos por WhatsApp:
+        <a href="https://wa.me/${SOPORTE_WA}?text=${encodeURIComponent('Hola, necesito ayuda para registrarme en TAGSOS.')}"
+           target="_blank" rel="noopener">
+          💬 ${SOPORTE_TEXTO}
+        </a>
+      </div>
     </div>
   `;
   document.getElementById("divisor-ficha").style.display = "block";
